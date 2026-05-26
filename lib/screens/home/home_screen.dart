@@ -401,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── EVENT CARDS ──────────────────────────────────────
   Widget _buildEventCards() {
     return SizedBox(
-      height: 200,
+      height: 220,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),

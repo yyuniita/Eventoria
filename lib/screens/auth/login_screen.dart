@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:eventoria/core/app_theme.dart';
 import 'package:eventoria/screens/home/home_screen.dart';
+import 'package:eventoria/screens/auth/register_screen.dart';
+import 'package:eventoria/services/api_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -12,6 +15,42 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _loading = false;
+
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Email dan password tidak boleh kosong');
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final res = await ApiService.login(email: email, password: password);
+      if (res['success'] == true) {
+        await ApiService.saveToken(res['token']);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
+      } else {
+        _showError(res['message'] ?? 'Email atau password salah');
+      }
+    } catch (e) {
+      _showError('Koneksi gagal. Pastikan server berjalan.');
+    }
+    setState(() => _loading = false);
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,18 +74,12 @@ class _LoginScreenState extends State<LoginScreen> {
       height: 260,
       child: Stack(
         children: [
-          Positioned(
-            top: -80, left: -60,
-            child: _circle(300, AppTheme.primary.withOpacity(0.13)),
-          ),
-          Positioned(
-            top: 40, right: -40,
-            child: _circle(200, AppTheme.secondary.withOpacity(0.07)),
-          ),
-          Positioned(
-            top: 160, left: 100,
-            child: _circle(120, AppTheme.primary.withOpacity(0.2)),
-          ),
+          Positioned(top: -80, left: -60,
+              child: _circle(300, AppTheme.primary.withOpacity(0.13))),
+          Positioned(top: 40, right: -40,
+              child: _circle(200, AppTheme.secondary.withOpacity(0.07))),
+          Positioned(top: 160, left: 100,
+              child: _circle(120, AppTheme.primary.withOpacity(0.2))),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -62,11 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text('EVENTORIA',
-                  style: TextStyle(
-                    color: Colors.white, fontSize: 22,
-                    fontWeight: FontWeight.w600, letterSpacing: 2,
-                  ),
-                ),
+                  style: TextStyle(color: Colors.white, fontSize: 22,
+                      fontWeight: FontWeight.w600, letterSpacing: 2)),
                 const SizedBox(height: 6),
                 Text('Temukan & nikmati event terbaikmu',
                   style: TextStyle(
@@ -146,37 +176,33 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 20),
 
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-              );
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Masuk', style: TextStyle(fontSize: 15)),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded, size: 18),
-              ],
-            ),
-          ),
+          // ✅ Tombol Masuk dengan login ke server
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : ElevatedButton(
+                  onPressed: _login,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Masuk', style: TextStyle(fontSize: 15)),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+                ),
 
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Row(
               children: [
-                Expanded(
-                    child: Divider(color: Colors.white.withOpacity(0.1))),
+                Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text('atau masuk dengan',
                     style: TextStyle(
                         color: Colors.white.withOpacity(0.3), fontSize: 12)),
                 ),
-                Expanded(
-                    child: Divider(color: Colors.white.withOpacity(0.1))),
+                Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
               ],
             ),
           ),
@@ -193,20 +219,28 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           const SizedBox(height: 20),
+
+          // ✅ FIX: Tambah GestureDetector agar "Daftar sekarang" bisa diklik
           Center(
-            child: RichText(
-              text: TextSpan(
-                text: 'Belum punya akun? ',
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.3), fontSize: 13),
-                children: [
-                  TextSpan(
-                    text: 'Daftar sekarang',
-                    style: TextStyle(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ],
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+              ),
+              child: RichText(
+                text: TextSpan(
+                  text: 'Belum punya akun? ',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.3), fontSize: 13),
+                  children: [
+                    TextSpan(
+                      text: 'Daftar sekarang',
+                      style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -214,8 +248,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // ---- Helper Widgets ----
 
   Widget _circle(double size, Color color) => Container(
     width: size, height: size,
@@ -241,8 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(text,
-      style: TextStyle(
-          color: Colors.white.withOpacity(0.4), fontSize: 12)),
+      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
   );
 
   Widget _inputField({
@@ -255,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Container(
         height: 50,
         decoration: BoxDecoration(
-          color: const Color(0xFF0D0D14),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withOpacity(0.08)),
         ),
@@ -268,11 +299,10 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextField(
                 controller: controller,
                 obscureText: obscure,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(color: Colors.black, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.25)),
+                  hintStyle: TextStyle(color: Colors.black.withOpacity(0.35)),
                   border: InputBorder.none,
                   isDense: true,
                 ),
