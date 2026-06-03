@@ -7,6 +7,7 @@ import 'package:eventoria/screens/home/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  await prefs.clear(); // ← hapus baris ini setelah login screen muncul
   final token = prefs.getString('token');
   runApp(MyApp(isLoggedIn: token != null));
 }

@@ -3,6 +3,9 @@ import 'package:eventoria/core/app_theme.dart';
 import 'package:eventoria/screens/home/home_screen.dart';
 import 'package:eventoria/screens/auth/register_screen.dart';
 import 'package:eventoria/services/api_service.dart';
+import 'package:eventoria/models/user_model.dart';
+import 'package:eventoria/services/auth_service.dart';
+import 'package:eventoria/screens/organizer/organizer_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +19,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _loading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
@@ -31,10 +41,21 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await ApiService.login(email: email, password: password);
       if (res['success'] == true) {
         await ApiService.saveToken(res['token']);
+
+        final userJson = res['user'] as Map<String, dynamic>;
+        userJson['token'] = res['token'];
+        final user = UserModel.fromJson(userJson);
+        await AuthService.saveSession(user);
+
+        final role = user.role;
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (_) => role == UserRole.organizer
+                  ? const OrganizerHomeScreen()
+                  : const HomeScreen(),
+            ),
           );
         }
       } else {
@@ -43,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       _showError('Koneksi gagal. Pastikan server berjalan.');
     }
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
   }
 
   void _showError(String msg) {
@@ -58,12 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: const Color(0xFF0D0D14),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeroSection(),
-              _buildLoginCard(),
-            ],
-          ),
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(children: [_buildHeroSection(), _buildLoginCard()]),
         ),
       ),
     );
@@ -74,33 +91,56 @@ class _LoginScreenState extends State<LoginScreen> {
       height: 260,
       child: Stack(
         children: [
-          Positioned(top: -80, left: -60,
-              child: _circle(300, AppTheme.primary.withOpacity(0.13))),
-          Positioned(top: 40, right: -40,
-              child: _circle(200, AppTheme.secondary.withOpacity(0.07))),
-          Positioned(top: 160, left: 100,
-              child: _circle(120, AppTheme.primary.withOpacity(0.2))),
+          Positioned(
+            top: -80,
+            left: -60,
+            child: _circle(300, AppTheme.primary.withOpacity(0.13)),
+          ),
+          Positioned(
+            top: 40,
+            right: -40,
+            child: _circle(200, AppTheme.secondary.withOpacity(0.07)),
+          ),
+          Positioned(
+            top: 160,
+            left: 100,
+            child: _circle(120, AppTheme.primary.withOpacity(0.2)),
+          ),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 64, height: 64,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: AppTheme.primary,
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(Icons.confirmation_number_rounded,
-                      color: Colors.white, size: 32),
+                  child: const Icon(
+                    Icons.confirmation_number_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                const Text('EVENTORIA',
-                  style: TextStyle(color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w600, letterSpacing: 2)),
-                const SizedBox(height: 6),
-                Text('Temukan & nikmati event terbaikmu',
+                const Text(
+                  'EVENTORIA',
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.4), fontSize: 13)),
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Temukan & nikmati event terbaikmu',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.4),
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -109,8 +149,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(width: 8),
                     _pill(Icons.palette_rounded, 'Pameran', AppTheme.secondary),
                     const SizedBox(width: 8),
-                    _pill(Icons.directions_run_rounded, 'Olahraga',
-                        const Color(0xFFFF6384)),
+                    _pill(
+                      Icons.directions_run_rounded,
+                      'Olahraga',
+                      const Color(0xFFFF6384),
+                    ),
                   ],
                 ),
               ],
@@ -133,23 +176,31 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Masuk ke akunmu',
-            style: TextStyle(color: Colors.white, fontSize: 20,
-                fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Selamat datang kembali! 👋',
+          const Text(
+            'Masuk ke akunmu',
             style: TextStyle(
-                color: Colors.white.withOpacity(0.4), fontSize: 13)),
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Selamat datang kembali! 👋',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 24),
-
           _label('Email'),
           _inputField(
             controller: _emailController,
             hint: 'contoh@email.com',
             icon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 16),
-
           _label('Password'),
           _inputField(
             controller: _passwordController,
@@ -161,22 +212,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 _obscurePassword
                     ? Icons.visibility_off_outlined
                     : Icons.visibility_outlined,
-                color: Colors.white.withOpacity(0.3), size: 20,
+                color: Colors.white.withOpacity(0.3),
+                size: 20,
               ),
               onPressed: () =>
                   setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
           const SizedBox(height: 8),
-
           Align(
             alignment: Alignment.centerRight,
-            child: Text('Lupa password?',
-              style: TextStyle(color: AppTheme.primary, fontSize: 12)),
+            child: Text(
+              'Lupa password?',
+              style: TextStyle(color: AppTheme.primary, fontSize: 12),
+            ),
           ),
           const SizedBox(height: 20),
-
-          // ✅ Tombol Masuk dengan login ke server
           _loading
               ? const Center(child: CircularProgressIndicator())
               : ElevatedButton(
@@ -190,7 +241,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Row(
@@ -198,29 +248,34 @@ class _LoginScreenState extends State<LoginScreen> {
                 Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('atau masuk dengan',
+                  child: Text(
+                    'atau masuk dengan',
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.3), fontSize: 12)),
+                      color: Colors.white.withOpacity(0.3),
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
                 Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
               ],
             ),
           ),
-
           Row(
             children: [
-              Expanded(child: _socialBtn(
-                  Icons.g_mobiledata_rounded, 'Google',
-                  const Color(0xFFEA4335))),
+              Expanded(
+                child: _socialBtn(
+                  Icons.g_mobiledata_rounded,
+                  'Google',
+                  const Color(0xFFEA4335),
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _socialBtn(
-                  Icons.apple_rounded, 'Apple', Colors.white)),
+              Expanded(
+                child: _socialBtn(Icons.apple_rounded, 'Apple', Colors.white),
+              ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // ✅ FIX: Tambah GestureDetector agar "Daftar sekarang" bisa diklik
           Center(
             child: GestureDetector(
               onTap: () => Navigator.push(
@@ -231,13 +286,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: TextSpan(
                   text: 'Belum punya akun? ',
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.3), fontSize: 13),
-                  children: [
+                    color: Colors.white.withOpacity(0.3),
+                    fontSize: 13,
+                  ),
+                  children: const [
                     TextSpan(
                       text: 'Daftar sekarang',
-                      style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -250,7 +308,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _circle(double size, Color color) => Container(
-    width: size, height: size,
+    width: size,
+    height: size,
     decoration: BoxDecoration(shape: BoxShape.circle, color: color),
   );
 
@@ -272,8 +331,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text,
-      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
+    child: Text(
+      text,
+      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
+    ),
   );
 
   Widget _inputField({
@@ -282,54 +343,69 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     bool obscure = false,
     Widget? suffix,
-  }) =>
-      Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Icon(icon, color: AppTheme.primary, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                obscureText: obscure,
-                style: const TextStyle(color: Colors.black, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: TextStyle(color: Colors.black.withOpacity(0.35)),
-                  border: InputBorder.none,
-                  isDense: true,
-                ),
+    TextInputType? keyboardType,
+  }) => Container(
+    height: 50,
+    decoration: BoxDecoration(
+      color: const Color(0xFF1E1E2A),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white.withOpacity(0.1)),
+    ),
+    child: Row(
+      children: [
+        const SizedBox(width: 14),
+        Icon(icon, color: AppTheme.primary, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              inputDecorationTheme: const InputDecorationTheme(
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
               ),
             ),
-            if (suffix != null) suffix,
-          ],
+            child: TextField(
+              controller: controller,
+              obscureText: obscure,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.25)),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
         ),
-      );
+        if (suffix != null) suffix,
+      ],
+    ),
+  );
 
-  Widget _socialBtn(IconData icon, String label, Color iconColor) =>
-      Container(
-        height: 46,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0D14),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+  Widget _socialBtn(IconData icon, String label, Color iconColor) => Container(
+    height: 46,
+    decoration: BoxDecoration(
+      color: const Color(0xFF0D0D14),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white.withOpacity(0.08)),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 20),
-            const SizedBox(width: 8),
-            Text(label,
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.5), fontSize: 13)),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 }

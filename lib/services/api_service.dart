@@ -9,6 +9,80 @@ class ApiService {
   // - iOS Simulator     → 127.0.0.1 (boleh)
   static const String baseUrl = 'http://10.0.2.2:8000/api';
 
+  // ── EVENTS ──────────────────────────────────────────
+
+// GET semua event (untuk user)
+static Future<List<dynamic>> getEvents() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/events'),
+    headers: await getHeaders(),
+  );
+  final data = jsonDecode(response.body);
+  return data['events'] ?? [];
+}
+
+// GET event milik organizer
+static Future<List<dynamic>> getMyEvents() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/organizer/events'),
+    headers: await getHeaders(),
+  );
+  final data = jsonDecode(response.body);
+  return data['events'] ?? [];
+}
+
+// POST buat event baru
+static Future<Map<String, dynamic>> createEvent({
+  required String title,
+  required String location,
+  required String eventDate,
+  required int totalTickets,
+  required int price,
+  required String category,
+  String? description,
+  String status = 'active',
+  String posterColor = '#6C63FF',
+}) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/organizer/events'),
+    headers: await getHeaders(),
+    body: jsonEncode({
+      'title': title,
+      'location': location,
+      'event_date': eventDate,
+      'total_tickets': totalTickets,
+      'price': price,
+      'category': category,
+      'description': description,
+      'status': status,
+      'poster_color': posterColor,
+    }),
+  );
+  return jsonDecode(response.body);
+}
+
+// PUT edit event
+static Future<Map<String, dynamic>> updateEvent({
+  required int id,
+  required Map<String, dynamic> data,
+}) async {
+  final response = await http.put(
+    Uri.parse('$baseUrl/organizer/events/$id'),
+    headers: await getHeaders(),
+    body: jsonEncode(data),
+  );
+  return jsonDecode(response.body);
+}
+
+// DELETE hapus event
+static Future<Map<String, dynamic>> deleteEvent(int id) async {
+  final response = await http.delete(
+    Uri.parse('$baseUrl/organizer/events/$id'),
+    headers: await getHeaders(),
+  );
+  return jsonDecode(response.body);
+}
+
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -76,7 +150,9 @@ class ApiService {
       Uri.parse('$baseUrl/me'),
       headers: await getHeaders(),
     );
-    return jsonDecode(response.body);
+    final data = jsonDecode(response.body);
+  // ✅ Handle jika response punya wrapper 'user'
+  return data['user'] ?? data;
   }
 
   static Future<void> logout() async {
@@ -85,3 +161,4 @@ class ApiService {
     await removeToken();
   }
 }
+
